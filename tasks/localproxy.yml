@@ -9,6 +9,13 @@
   ansible.builtin.include_tasks: squid.yml
   vars:
     _cvmfs_squid_conf_src: "{{ cvmfs_squid_conf_src | default('localproxy_squid.conf.j2') }}"
+  when: cvmfs_localproxy_type == 'squid'
+
+- name: Include varnish tasks
+  ansible.builtin.include_tasks: varnish.yml
+  vars:
+    _cvmfs_varnish_conf_src: "{{ cvmfs_varnish_conf_src | default('localproxy_varnish.vcl.j2') }}"
+  when: cvmfs_localproxy_type == 'varnish'
 
 # Need to double check that this actually works (see the hosts_file directive)
 # - name: Create squid hosts file
