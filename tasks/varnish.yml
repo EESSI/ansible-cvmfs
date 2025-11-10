@@ -1,0 +1,68 @@
+---
+- name: Determine Varnish version
+  ansible.builtin.shell: "varnishd -V 2>&1 | grep -oP 'varnish-\\d+\\.\\d+' | sed 's|varnish-||'"
+  changed_when: false
+  register: varnish_version_command
+
+- name: Check if vmod-dynamic is already installed
+  ansible.builtin.stat:
+    path: "{{ cvmfs_varnish_vmod_dynamic_installed_file }}"
+  register: vmod_dynamic_installed
+
+- name: Check for which Varnish version vmod_dynamic was built
+  ansible.builtin.slurp:
+    src: "{{ cvmfs_varnish_vmod_dynamic_installed_file }}"
+  register: vmod_dynamic_installed_file
+  when: vmod_dynamic_installed.stat.exists
+
+- name: Set facts for installed Varnish version and the one used for the vmod_dynamic installation
+  ansible.builtin.set_fact:
+    varnish_version: "{{ varnish_version_command.stdout }}"
+    vmod_dynamic_varnish_version: "{{ '0' if not vmod_dynamic_installed.stat.exists else vmod_dynamic_installed_file['content'] | b64decode }}"
+
+- block:
+    - name: Download vmod_dynamic sources
+      ansible.builtin.get_url:
+        url: "https://github.com/nigoroll/libvmod-dynamic/archive/refs/heads/{{ varnish_version }}.tar.gz"
+        dest: /tmp/
+        mode: '0440'
+
+    - name: Extract vmod_dynamic tarball
+      ansible.builtin.unarchive:
+        src: "/tmp/libvmod-dynamic-{{ varnish_version }}.tar.gz"
+        remote_src: true
+        dest: /tmp/
+
+    - name: Run autogen.sh, configure, make, make install for vmod_dynamic
+      ansible.builtin.shell:
+        cmd: "./autogen.sh && ./configure && make && make install"
+        chdir: "/tmp/libvmod-dynamic-{{ varnish_version }}"
+        creates: "{{ cvmfs_varnish_vmod_dynamic_man_page }}"
+
+    - name: Log the varnish version for which vmod_dynamic was built to a file
+      ansible.builtin.copy:
+        content: "{{ varnish_version }}"
+        dest: "{{ cvmfs_varnish_vmod_dynamic_installed_file }}"
+        mode: 0644
+        owner: root
+        group: root
+
+    - name: Clean up source files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "/tmp/libvmod-dynamic-{{ varnish_version }}.tar.gz"
+        - "/tmp/libvmod-dynamic-{{ varnish_version }}"
+
+  when: not vmod_dynamic_installed.stat.exists or (vmod_dynamic_installed.stat.exists and vmod_dynamic_varnish_version != varnish_version)
+
+- name: Configure Varnish forward proxy
+  ansible.builtin.template:
+    src: "{{ _cvmfs_varnish_conf_src }}"
+    dest: "{{ cvmfs_varnish_conf_file }}"
+    backup: true
+    mode: 0644
+  notify:
+    - Restart varnish
+...

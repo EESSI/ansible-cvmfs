@@ -7,6 +7,11 @@ cvmfs_squid_conf_file: /etc/squid/squid.conf
 cvmfs_squid_user: proxy
 cvmfs_squid_group: proxy
 
+cvmfs_varnish_service_name: varnish
+cvmfs_varnish_conf_file: /etc/varnish/default.vcl
+cvmfs_varnish_vmod_dynamic_installed_file: /usr/share/varnish/vmod_dynamic.installed
+cvmfs_varnish_vmod_dynamic_man_page: /usr/share/man/man3/vmod_dynamic.3
+
 cvmfs_packages:
   stratum0:
     - apache2
@@ -21,7 +26,6 @@ cvmfs_packages:
     - "{{ 'squid' if cvmfs_stratum1_squid else omit }}"
   stratum1-s3:
     - cvmfs-server
-  localproxy:
-    - squid
+  localproxy: "{{ ['varnish', 'libvarnishapi-dev', 'automake', 'make', 'pkg-config', 'libtool', 'python3-docutils'] if cvmfs_localproxy_type == 'varnish' else ['squid'] }}"
   client:
     - cvmfs

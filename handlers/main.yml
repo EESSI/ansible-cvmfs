@@ -11,6 +11,11 @@
     name: "{{ cvmfs_squid_service_name }}"
     state: restarted
 
+- name: Restart varnish
+  ansible.builtin.service:
+    name: "{{ cvmfs_varnish_service_name }}"
+    state: restarted
+
 - name: Restart apache
   ansible.builtin.service:
     name: "{{ cvmfs_apache_service_name }}"
