@@ -18,6 +18,9 @@ cvmfs_stratum1_http_ports:
 cvmfs_localproxy_http_ports:
   - 3128
 
+# Type of local forward proxy, can be either squid or varnish
+cvmfs_localproxy_type: squid
+# use a Squid reverse proxy on the Stratum1
 cvmfs_stratum1_squid: false
 # if a Squid frontend is used on the Stratum 1, Apache needs to listen on an internal port
 # otherwise we stick to cvmfs_stratum1_http_ports
