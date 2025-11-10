@@ -7,6 +7,11 @@ cvmfs_squid_conf_file: /etc/squid/squid.conf
 cvmfs_squid_user: squid
 cvmfs_squid_group: squid
 
+cvmfs_varnish_service_name: varnish
+cvmfs_varnish_conf_file: /etc/varnish/default.vcl
+cvmfs_varnish_vmod_dynamic_installed_file: /usr/share/varnish/vmod_dynamic.installed
+cvmfs_varnish_vmod_dynamic_man_page: /usr/share/man/man3/vmod_dynamic.3
+
 cvmfs_dnf_repos:
   - name: cernvm
     description: CernVM packages
@@ -64,6 +69,6 @@ cvmfs_packages:
   stratum1-s3:
     - cvmfs-server
   localproxy:
-    - squid
+    - "{{ ['varnish', 'varnish-devel', 'automake', 'libtool', python-docutils'] if cvmfs_localproxy_type == 'varnish' else 'squid' }}"
   client:
     - cvmfs
