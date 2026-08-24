@@ -31,19 +31,22 @@
     label: "{{ item.repository }}: CVMFS_PARTIAL_REPLICATION_SPEC"
   when: item.partial_replication is defined and item.partial_replication.enabled
 
-- name: Remove partial replication configuration (full-sync fallback)
-  block:
-    - name: Remove partial replication specification file
-      ansible.builtin.file:
-        path: /etc/cvmfs/repositories.d/{{ item.repository }}/partial-replication.spec
-        state: absent
-    - name: Remove partial replication lines from server configuration
-      ansible.builtin.lineinfile:
-        path: /etc/cvmfs/repositories.d/{{ item.repository }}/server.conf
-        regexp: '^CVMFS_PARTIAL_REPLICATION(_SPEC)?=.*'
-        state: absent
+- name: Remove partial replication specification file (full-sync fallback)
+  ansible.builtin.file:
+    path: /etc/cvmfs/repositories.d/{{ item.repository }}/partial-replication.spec
+    state: absent
   loop: "{{ cvmfs_repositories }}"
   loop_control:
-    label: "{{ item.repository }}: remove partial replication"
+    label: "{{ item.repository }}: remove partial-replication.spec"
+  when: item.partial_replication is not defined or not item.partial_replication.enabled
+
+- name: Remove partial replication lines from server configuration (full-sync fallback)
+  ansible.builtin.lineinfile:
+    path: /etc/cvmfs/repositories.d/{{ item.repository }}/server.conf
+    regexp: '^CVMFS_PARTIAL_REPLICATION(_SPEC)?=.*'
+    state: absent
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "{{ item.repository }}: clear partial replication lines"
   when: item.partial_replication is not defined or not item.partial_replication.enabled
 
