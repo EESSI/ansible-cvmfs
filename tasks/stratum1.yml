@@ -102,6 +102,9 @@
   vars:
     _cvmfs_repo_option_key: server
 
+- name: Include partial replication tasks
+  ansible.builtin.include_tasks: partial_replication.yml
+
 - name: Perform initial snapshot
   ansible.builtin.command: /usr/bin/cvmfs_server snapshot {{ item.item.repository }}
   loop: "{{ __cvmfs_add_replica_result.results }}"

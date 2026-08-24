@@ -1,0 +1,49 @@
+---
+- name: Write partial replication specifications
+  ansible.builtin.copy:
+    dest: /etc/cvmfs/repositories.d/{{ item.repository }}/partial-replication.spec
+    content: "version 1\n{% for path in item.partial_replication.paths %}{{ path }}\n{% endfor %}"
+    mode: 0644
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "{{ item.repository }} partial-replication.spec"
+  when: item.partial_replication is defined and item.partial_replication.enabled
+
+- name: Enable partial replication flag in server configuration
+  ansible.builtin.lineinfile:
+    path: /etc/cvmfs/repositories.d/{{ item.repository }}/server.conf
+    regexp: '^CVMFS_PARTIAL_REPLICATION=.*'
+    line: 'CVMFS_PARTIAL_REPLICATION=true'
+    mode: 0644
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "{{ item.repository }}: CVMFS_PARTIAL_REPLICATION"
+  when: item.partial_replication is defined and item.partial_replication.enabled
+
+- name: Set partial replication specification path in server configuration
+  ansible.builtin.lineinfile:
+    path: /etc/cvmfs/repositories.d/{{ item.repository }}/server.conf
+    regexp: '^CVMFS_PARTIAL_REPLICATION_SPEC=.*'
+    line: 'CVMFS_PARTIAL_REPLICATION_SPEC=/etc/cvmfs/repositories.d/{{ item.repository }}/partial-replication.spec'
+    mode: 0644
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "{{ item.repository }}: CVMFS_PARTIAL_REPLICATION_SPEC"
+  when: item.partial_replication is defined and item.partial_replication.enabled
+
+- name: Remove partial replication configuration (full-sync fallback)
+  block:
+    - name: Remove partial replication specification file
+      ansible.builtin.file:
+        path: /etc/cvmfs/repositories.d/{{ item.repository }}/partial-replication.spec
+        state: absent
+    - name: Remove partial replication lines from server configuration
+      ansible.builtin.lineinfile:
+        path: /etc/cvmfs/repositories.d/{{ item.repository }}/server.conf
+        regexp: '^CVMFS_PARTIAL_REPLICATION(_SPEC)?=.*'
+        state: absent
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "{{ item.repository }}: remove partial replication"
+  when: item.partial_replication is not defined or not item.partial_replication.enabled
+
