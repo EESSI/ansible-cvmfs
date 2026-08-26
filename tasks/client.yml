@@ -89,6 +89,9 @@
   vars:
     _cvmfs_repo_option_key: client
 
+- name: Include partial replica client tasks
+  ansible.builtin.include_tasks: client_partial_replica.yml
+
 - name: Install cvmfs_wipecache setuid binary
   ansible.builtin.copy:
     src: cvmfs_wipecache.{{ _cvmfs_install_setuid_platform }}_{{ ansible_distribution_major_version }}
