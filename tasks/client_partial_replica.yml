@@ -1,0 +1,63 @@
+---
+# Client-side opt-in for using a partial Stratum 1 replica, driven by an
+# optional per-repo dict:
+#
+#   cvmfs_repositories[*].partial_replica_client:
+#     enabled: true
+#     mode: failover   # or: fail
+#     # Optional per-repo override of CVMFS_SERVER_URL pointing the client
+#     # at the partial replica (a ';'-separated list is allowed, the
+#     # regular server list failover semantics apply). Without it, the
+#     # domain-level CVMFS_SERVER_URL is used.
+#     server_url: "http://partial-s1.example.org/cvmfs/repo.example.org"
+#     # Required for mode 'failover'. Ignored for mode 'fail'.
+#     full_stratum1_url: "http://full-s1.example.org/cvmfs/repo.example.org"
+#
+# The config is written to /etc/cvmfs/config.d/<fqrn>.local, the last file
+# in the client's config chain, so it overrides domain-level settings.
+# That file is considered fully managed here; do not mix other settings in.
+#
+# Requires CernVM-FS >= 2.14.0 on the client.
+
+- name: Validate partial replica client configuration
+  ansible.builtin.assert:
+    that:
+      - item.partial_replica_client.mode in ['failover', 'fail']
+      - item.partial_replica_client.mode == 'fail' or
+        item.partial_replica_client.full_stratum1_url is defined
+    fail_msg: >-
+      Invalid partial_replica_client for {{ item.repository }}: mode must
+      be 'failover' or 'fail'; 'failover' requires full_stratum1_url.
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "{{ item.repository }}: validate partial_replica_client"
+  when: item.partial_replica_client is defined and item.partial_replica_client.enabled
+
+- name: Write partial replica client configuration
+  ansible.builtin.copy:
+    dest: "/etc/cvmfs/config.d/{{ item.repository }}.local"
+    content: |
+      ## This file is maintained by Ansible - CHANGES WILL BE OVERWRITTEN
+      {% if item.partial_replica_client.server_url is defined %}
+      CVMFS_SERVER_URL="{{ item.partial_replica_client.server_url }}"
+      {% endif %}
+      CVMFS_PARTIAL_REPLICA_MODE={{ item.partial_replica_client.mode }}
+      {% if item.partial_replica_client.mode == 'failover' %}
+      CVMFS_FULL_STRATUM1_URL="{{ item.partial_replica_client.full_stratum1_url }}"
+      {% endif %}
+    owner: root
+    group: root
+    mode: 0444
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "/etc/cvmfs/config.d/{{ item.repository }}.local"
+  when: item.partial_replica_client is defined and item.partial_replica_client.enabled
+
+- name: Remove partial replica client configuration (full-replica fallback)
+  ansible.builtin.file:
+    dest: "/etc/cvmfs/config.d/{{ item.repository }}.local"
+    state: absent
+  loop: "{{ cvmfs_repositories }}"
+  loop_control:
+    label: "/etc/cvmfs/config.d/{{ item.repository }}.local"
+  when: item.partial_replica_client is not defined or not item.partial_replica_client.enabled
